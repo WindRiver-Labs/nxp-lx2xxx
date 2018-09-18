@@ -1,0 +1,364 @@
+		NXP LX2XXX BSP
+
+
+1. About this document
+======================
+This document describes the common and non-hardware specific information.
+Please refer to README.hardware for hardware specific information.
+
+Dependencies
+------------
+This layer depends on the oe-core version supplied with linux-yocto kernel.
+
+Maintenance
+-----------
+This layer is maintained by Wind River Systems, Inc.
+Contact <support@windriver.com> or your support representative for more
+information on submitting changes.
+
+Building the nxp-lx2xxx layer
+-----------------------------
+This layer should be added to bblayers.conf. This is done automatically
+when using the Wind River setup.sh wrapper.
+
+License
+-------
+Copyright (C) 2018 Wind River Systems, Inc.
+
+The right to copy, distribute or otherwise make use of this software may
+be licensed only pursuant to the terms of an applicable Wind River license
+agreement. No license to Wind River intellectual properly rights is granted
+herein. All rights not licensed by Wind River are reserved by Wind River.
+
+Source code included in tree for individual recipes is under the LICENSE
+stated in each recipe (.bb file) unless other stated.
+
+
+2. BSP Kernel and Distros
+=========================
+
+The following table summarizes the valid Wind River Linux distros for this BSP.
+'Y' in each content cell stands for supported; 'N' stands for not supported:
+
+  +--------------+-------------+-------------+-------------+
+  | valid/distro |   wrlinux   | wrlinux-cgl | wrlinux-ovp |
+  +--------------+-------------+-------------+-------------+
+  |    valid     |      Y      |      Y      |      N      |
+  +--------------+-------------+-------------+-------------+
+
+For the supported kernel type for this BSP, please check the TARGET_SUPPORTED_KTYPES
+by running 'bitbake -e | grep "^TARGET_SUPPORTED_KTYPES"'.
+
+Note: The preempt-rt ktype is not available for this BSP/Machine at this time.
+
+
+3. Board Specific Patches
+=========================
+
+To get a list of patches applied to the kernel specific to this BSP
+along with patch descriptions use git whatchanged on the default
+kernel (git whatchanged <kernel_type>..<bsp_name>). For example:
+
+  # cd tmp-glibc/work-shared/<bsp_name>/kernel-source
+  # git whatchanged standard/base..standard/nxp/lsdk-1712/nxp-lx2xxx
+
+
+4. Boot Instructions
+====================
+
+The typical u-boot settings apply to these boards. You will need to use
+setenv, printenv and saveenv, to configure, display and store respectively
+your network configuration details and kernel command line. In order to
+TFTP a kernel, you need at a minimum to set the following:
+
+	- ipaddr
+	- gatewayip
+	- netmask
+	- serverip
+	- loadaddr
+	- dtbfile
+	- dtbaddr
+	- ethaddr
+	- eth1addr
+
+Your board may ship with the values for the MAC address of
+the Ethernet interfaces set to the defaults compiled into the
+u-boot image.  You should set the ethaddr, eth1addr and so on
+as per the manufacturer assigned values, usually indicated with
+a sticker on the board.
+
+Target specifics are usually set in the "bootargs" variable, and the
+kernel image is set in the "bootfile" variable. Don't forget that if you
+want these values to be available after a power cycle you will need to run
+the saveenv command.
+
+Typically convenience macros exist that will create a complete bootargs
+command line for the kernel based on variables that contain individual
+settings.  Since these macros exist as env variables themselves, they
+may or may not be present depending on who installed and configured
+u-boot for the board.
+
+The console device for the board is ttyAMA0(UART1) at 115200 baud. For the DTB
+address, 0xa8000000 was used with success by Wind River. The load address
+must be high enough to not interfere with kernel decompression. A value
+of 0xa0000000 was used with success for all kernels tested by Wind River.
+
+4.1 NFS Root File System
+------------------------
+
+Example settings for the monitor (u-boot) are shown below:
+
+nfsboot=setenv bootargs root=/dev/nfs rw nfsroot=$serverip:$rootpath \
+ip=$ipaddr:$serverip:$gatewayip:$netmask:$hostname:$netdev:off \
+console=$consoledev,$baudrate $othbootargs;
+ethaddr=00:04:9F:02:00:FD
+eth1addr=00:04:9F:02:01:FD
+eth2addr=00:04:9F:02:02:FD
+loadaddr=0xa0000000
+fdtaddr=0xa8000000
+gatewayip=192.168.1.1
+netmask=255.255.255.0
+ipaddr=192.168.1.100
+serverip=192.168.1.2
+netdev=ni0
+ethact=DPMAC17@rgmii-i or DPMAC17@rgmii-id
+ethprime=DPMAC17@rgmii-i or DPMAC17@rgmii-id
+bootfile=Image
+fdtfile=fsl-lx2160a-rdb.dtb
+rootpath=/tftpboot/rootfs
+consoledev=ttyAMA0
+baudrate=115200
+othbootargs=earlycon=pl011,mmio32,0x21c0000 \
+default_hugepagesz=1024m hugepagesz=1024m hugepages=8 isolcpus=1-7
+bootcmd=run nfsboot; tftp $loadaddr $bootfile; tftp $fdtaddr $fdtfile;\
+fsl_mc apply dpl 0x20d00000; booti $loadaddr - $fdtaddr
+
+Note: If the u-boot does not start the MC and deploy data path layout, please
+use the command 'fsl_mc start mc 0x20a00000 0x20e00000' to start the MC and
+command 'fsl_mc apply dpl 0x20d00000' to deploy data path layout, the last
+command can avoid the error log 'ERROR: fsl-mc: DPL is not applied' for booting
+the linux kernel image.
+
+5. Update NXP's pre-built image
+===============================
+
+5.1. On-Board NOR Flash vbank Configuration
+-------------------------------------------
+
+Depending on on-board switch configuration for FLEXSPI flash; software
+boots from DEV#0 and DEV#1. The default on-board switch configuration
+boots the board from DEV#0. The board can boot from DEV#1 by using
+the qixis_reset altbank command from the DEV#0 u-boot prompt.
+
+The RDB comes pre-loaded with all binaries in DEV#0.
+Users are able to program images in 2 separate virtual flash banks (DEV#0
+and DEV#1). Images in DEV#0 are locked to prevent accidental erasure or
+corruption. Initially, the same images are also programmed in DEV#1. This
+bank is not locked so users have the option to download and program new
+images into DEV#1 as needed. The instructions below list commands to
+download images to DEV#1 and to boot from DEV#1.
+
+Note: Use 'i2c mw 66 50 20;sf probe 0:0' to program DEV#1, while use
+'i2c mw 66 50 00;sf probe 0:0' to program DEV#0.
+
+5.2. NXP's pre-built image
+--------------------------
+
+5.2.1 Deploy NXP pre-built image one by one
+
+NXP provides some pre-built images which are U-Boot, RCW, etc.
+
+From U-boot command line of DEV#0, run the following commands to update and switch to alternate bank:
+$i2c mw 66 50 20;sf probe 0:0;
+$tftp 90000000 <path>/firmware.itb;
+$sf erase 800000 +1c000;sf write 90000000 800000 1c000;
+
+$tftp a0000000 <path>/rcw_1900_600_2600_19_5_2.bin;
+$sf erase 0 +200;sf write a0000000 0 200;
+
+$tftp b0000000 <path>/u-boot.bin;
+$sf erase 100000 +100000;sf write b0000000 100000 100000;
+
+$tftp c0000000 <path>/mc.itb;
+$sf erase a00000 +200000;sf write c0000000 a00000 200000;
+
+$tftp d0000000 <path>/dpl-eth.19.dtb;
+$sf erase d00000 +c0000;sf write d0000000 d00000 c0000;
+
+$tftp e0000000 <path>/dpc-warn.dtb;
+$sf erase e00000 +c0000;sf write e0000000 e00000 c0000;
+
+$tftp f0000000 <path>/ppa.itb;
+$sf erase 400000 +100000;sf write f0000000 400000 100000;
+
+$qixis_reset altbank
+
+to switch to DEV#1.
+
+Note: if you want to program the DEV#0 , please use the 'i2c mw 66 50 00;sf probe 0:0;'
+More details about above descriptions, please refer to instructions in the sections
+
+	"4.3.1.3 Booting"
+
+in the NXP release notes
+
+	"Layerscape LX2160A BSP v0.3.pdf".
+
+5.2.2 Deploy NXP one pre-built image
+
+NXP provides one pre-built image which contains the U-Boot, RCW, etc.
+
+The files is LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash.
+Run the following commands to update and switch to alternate bank:
+
+$i2c mw 66 50 20;sf probe 0:0;
+$tftp 0xa0000000 <patch>/LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash
+$sf erase 0 +0x4000000;sf write 0xa0000000 0 0x4000000
+
+$qixis_reset altbank
+to switch to DEV#1
+
+Note: if you want to program the DEV#0 , please use the 'i2c mw 66 50 00;sf probe 0:0;'
+Please be very careful when load those binaries to flash.
+If load failed when use the LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash,
+then please deploy images as in 4.2.1 (Deploy NXP pre-built image one by one).
+
+5.3. FlexSPI NOR Flash Chip-select
+--------------------------
+On the LX2160ARDB revisions 1.0, switch SW1 bits 6-8 to control which bank
+the SoC loads from when it powers up. The relevant values are:
+
+Switch Settings 	NOR CS
+off off off 		Load from NOR Flash Dev#0
+off off on 		Load from NOR Flash Dev#1
+
+5.4. NXP's SDK user manual
+--------------------------
+
+To get more details about above descriptions, please refer to instructions
+mentioned in the sections
+
+	"4.2 Memory Layout"
+and
+	"4.3.1 LX2160ARDB"
+
+in the NXP's SDK user manual
+
+	"Layerscape LX2160A BSP v0.3.pdf".
+
+6. Creating Partitioned Images(WIC)
+===================================
+
+User can use the OpenEmbedded Image Creator, wic, to create the properly
+partitioned image on a SD card. The wic command
+generates partitioned images from existing OpenEmbedded build artifacts.
+User can refer to the below URL to get more WIC details:
+
+http://www.yoctoproject.org/docs/2.4/mega-manual/mega-manual.html#creating-partitioned-images-using-wic
+
+This BSP supports disk images for SD card.
+After build the project, user will get a WIC image under the directory
+tmp-glibc/deploy/images/<bsp name>/ ,such as:
+
+tmp-glibc/deploy/images/nxp-lx2xxx/wrlinux-image-glibc-small-nxp-lx2xxx.wic
+
+Then user can write the output image to a SD card:
+
+Since this BSP doesn't have a firmware to read the uboot from a partition table,
+WIC image only contains kernel, dtb and rootfs. We still need to write U-boot
+image to NOR flash directly as "bootloader/README" described.
+
+6.1 Burn images to SD card
+--------------------------
+
+To burn uboot and WIC images to SD card, user only need to execute the below command:
+
+# dd if=wrlinux-image-glibc-small-nxp-lx2xxx.wic of=/dev/your_sd_dev
+
+6.2 Set uboot env
+-----------------
+
+Board can boot automatically by set the below uboot environment variables:
+
+=> setenv bootfile Image; setenv fdtfile fsl-lx2160a-rdb.dtb;  setenv loadaddr 0xa0000000; setenv fdtaddr 0x90000000;
+
+=> setenv bootargs console=ttyAMA0,115200 earlycon=pl011,mmio32,0x21c0000 root=/dev/mmcblk0p2 rw no_console_suspend ip=dhcp
+
+=> setenv bootcmd 'fsl_mc start mc 0x20a00000 0x20e00000; fsl_mc apply dpl 0x20d00000; fatload mmc 0:1 $loadaddr $bootfile; fatload mmc 0:1 $fdtaddr $fdtfile; booti $loadaddr - $fdtaddr'
+
+=> saveenv; run bootcmd;
+
+
+7. Enable on-board 10G ports in kernel
+======================================
+
+LX2160A-RDB reference board contains 2 on-board 1G ports, 2 on-board 10G ports, and 1 on-board 40G ports.
+
+They can be found in u-boot as below:
+DPMAC17@xgmii and DPMAC18@xgmii are 1G Copper ports,
+DPMAC3@xgmii and DPMAC4@xgmii are 10G Copper ports.
+DPMAC2@xlaui4 is 40G Optical ports.
+
+These ports' status are controlled by DPL. SDK provides a default DPL:
+
+dpl-2dpni.dtb
+
+It enables the DPMAC17@xgmii port and DPMAC2@xlaui4 port.
+To enable other ports in kernel, user can modify this DPL or through an
+userspace application "restool" which is provided by SDK.
+Unfortunately, teh DPL has NXP's private license,
+WindRiver Linux can't merge them.
+So if user want to enable other ports in WindRiver Linux, user can
+update SDK's DPL's "connections" section manually:
+
+	connections {
+		connection@0{
+			endpoint1 = "dpni@0";
+			endpoint2 = "dpmac@17";
+		};
+	};
+
+
+For instance, if user want to enalbe the first Optical port, can replace
+
+			endpoint2 = "dpmac@17";
+to
+
+			endpoint2 = "dpmac@18";
+
+Then generate a new DPL on Host:
+
+dtc -I dts -O dtb dpl-eth.0x13.dts -o dpl.dtb
+
+Upload this DPL to board and deploy it onto the board:
+
+tftp d0000000 <path>/dpl-eth.0x13.dtb; sf erase d00000 +c0000;sf write d0000000 d00000 c0000;
+
+To get more details about above descriptions, please refer to instructions
+mentioned in the NXP's SDK user manual
+
+	"4.3.1 LX2160ARDB"
+in
+	"Layerscape LX2160A BSP v0.3.pdf".
+
+8. DPDK
+=======
+
+8.1 Boot Arguments
+------------------
+The following boot arguments can be used in order to obtain the best performance
+for DPDK applications:
+  default_hugepagesz=1024m hugepagesz=1024m hugepages=8
+
+8.2 Sample Applications
+-----------------------
+In order to get the sample applications provided by the DPDK, you need to enable
+bsp-extras template. You can use the steps like the following to run the sample
+applications. Take the l2fwd as example:
+  1. Configure the DPAA2 resource container:
+       /usr/share/dpdk/dynamic_dpl.sh dpmac.3 dpmac.4
+  2. Setup the environment variable using the container name reported by
+     dynamic_dpl.sh command:
+       export DPRC=dprc.2
+  3. Run the layer 2 forwarding application:
+       /usr/share/examples/l2fwd/l2fwd -c 0x6 -n 1 -- -p 0x3
