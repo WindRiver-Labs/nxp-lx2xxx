@@ -60,7 +60,7 @@ along with patch descriptions use git whatchanged on the default
 kernel (git whatchanged <kernel_type>..<bsp_name>). For example:
 
   # cd tmp-glibc/work-shared/<bsp_name>/kernel-source
-  # git whatchanged standard/base..standard/nxp/lsdk-1712/nxp-lx2xxx
+  # git whatchanged standard/base..standard/nxp-ls/lsdk-1712/nxp-lx2xxx
 
 
 4. Boot Instructions
