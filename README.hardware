@@ -85,5 +85,5 @@ in a different environment it may possibly have some issues.
 	SoC:  LX2160ACE Rev1.0 (0x87360010)
 	Board: LX2160ACE Rev1.0-RDB, Board version: B FPGA: v3.0
 	BootLoader: U-Boot
-	BootLoader Version: U-Boot 2017.07+fsl+g18773ea (Jul 16 2018 - 11:03:53 +0000)
+	BootLoader Version: U-Boot 2017.07+fsl+ge52da33 (Aug 29 2018 - 09:37:08 +0000)
 	Management Complex Version: 10.9.2

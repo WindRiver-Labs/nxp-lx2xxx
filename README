@@ -128,8 +128,7 @@ fdtfile=fsl-lx2160a-rdb.dtb
 rootpath=/tftpboot/rootfs
 consoledev=ttyAMA0
 baudrate=115200
-othbootargs=earlycon=pl011,mmio32,0x21c0000 \
-default_hugepagesz=1024m hugepagesz=1024m hugepages=8 isolcpus=1-7
+othbootargs=earlycon=pl011,mmio32,0x21c0000
 bootcmd=run nfsboot; tftp $loadaddr $bootfile; tftp $fdtaddr $fdtfile;\
 fsl_mc apply dpl 0x20d00000; booti $loadaddr - $fdtaddr
 
