@@ -23,6 +23,8 @@ This BSP supports the following boards:
   - 2018/10 (US114768): Wind River Linux 10.17.41 RCPL13. Standard
                         support for NXP LX2160ARDB, based on NXP
                         lx2160a-early-access-bsp0.3.
+  - 2019/09 (LINUXPG-16): Wind River Linux 10.18 RCPL10, Standard support based
+			on NXP LSDK1906.
 
 3. BSP Features
 ===============
@@ -67,7 +69,6 @@ the corresponding h/w features exist.
 The following features are not supported and validated:
   x DMA Engine: queue direct memory access (QDMA) controller
   x Decompression and compression engine (DCE 1.0)
-  x CPU hot plug.
   x Ethernet 25 GbE, PHY IN112525, SFP+ (2 x Optical)
 
 4. BSP Notes
@@ -85,5 +86,5 @@ in a different environment it may possibly have some issues.
 	SoC:  LX2160ACE Rev1.0 (0x87360010)
 	Board: LX2160ACE Rev1.0-RDB, Board version: B FPGA: v3.0
 	BootLoader: U-Boot
-	BootLoader Version: U-Boot 2017.07+fsl+ge52da33 (Aug 29 2018 - 09:37:08 +0000)
-	Management Complex Version: 10.9.2
+	BootLoader Version: U-Boot 2018.09-g80b2d2bc4c (Mar 29 2019 - 03:05:39 +0800)
+	Management Complex Version: 10.14.3

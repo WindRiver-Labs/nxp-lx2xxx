@@ -23,7 +23,7 @@ when using the Wind River setup.sh wrapper.
 
 License
 -------
-Copyright (C) 2018 Wind River Systems, Inc.
+Copyright (C) 2019 Wind River Systems, Inc.
 
 The right to copy, distribute or otherwise make use of this software may
 be licensed only pursuant to the terms of an applicable Wind River license
@@ -60,7 +60,7 @@ along with patch descriptions use git whatchanged on the default
 kernel (git whatchanged <kernel_type>..<bsp_name>). For example:
 
   # cd tmp-glibc/work-shared/<bsp_name>/kernel-source
-  # git whatchanged standard/base..standard/nxp-ls/lsdk-1712/nxp-lx2xxx
+  # git whatchanged standard/base..standard/nxp-ls/lsdk-1906/nxp-lx2xxx
 
 
 4. Boot Instructions
@@ -163,64 +163,21 @@ Note: Use 'i2c mw 66 50 20;sf probe 0:0' to program DEV#1, while use
 5.2. NXP's pre-built image
 --------------------------
 
-5.2.1 Deploy NXP pre-built image one by one
+NXP provides a pre-built image which contains U-Boot, RCW, etc.
+Please download it through:
 
-NXP provides some pre-built images which are U-Boot, RCW, etc.
-
-From U-boot command line of DEV#0, run the following commands to update and switch to alternate bank:
-$i2c mw 66 50 20;sf probe 0:0;
-$tftp 90000000 <path>/firmware.itb;
-$sf erase 800000 +1c000;sf write 90000000 800000 1c000;
-
-$tftp a0000000 <path>/rcw_1900_600_2600_19_5_2.bin;
-$sf erase 0 +200;sf write a0000000 0 200;
-
-$tftp b0000000 <path>/u-boot.bin;
-$sf erase 100000 +100000;sf write b0000000 100000 100000;
-
-$tftp c0000000 <path>/mc.itb;
-$sf erase a00000 +200000;sf write c0000000 a00000 200000;
-
-$tftp d0000000 <path>/dpl-eth.19.dtb;
-$sf erase d00000 +c0000;sf write d0000000 d00000 c0000;
-
-$tftp e0000000 <path>/dpc-warn.dtb;
-$sf erase e00000 +c0000;sf write e0000000 e00000 c0000;
-
-$tftp f0000000 <path>/ppa.itb;
-$sf erase 400000 +100000;sf write f0000000 400000 100000;
-
-$qixis_reset altbank
-
-to switch to DEV#1.
-
-Note: if you want to program the DEV#0 , please use the 'i2c mw 66 50 00;sf probe 0:0;'
-More details about above descriptions, please refer to instructions in the sections
-
-	"4.3.1.3 Booting"
-
-in the NXP release notes
-
-	"Layerscape LX2160A BSP v0.3.pdf".
-
-5.2.2 Deploy NXP one pre-built image
-
-NXP provides one pre-built image which contains the U-Boot, RCW, etc.
-
-The files is LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash.
-Run the following commands to update and switch to alternate bank:
+ wget http://www.nxp.com/lgfiles/sdk/lsdk1906/firmware_lx2160ardb_uboot_xspiboot.img
+and burn it to the target board under the U-Boot prompt using the commands below:
 
 $i2c mw 66 50 20;sf probe 0:0;
-$tftp 0xa0000000 <patch>/LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash
-$sf erase 0 +0x4000000;sf write 0xa0000000 0 0x4000000
+$tftp 0xa0000000 firmware_lx2160ardb_uboot_xspiboot.img
+$sf erase 0 +$filesize;sf write 0xa0000000 0 $filesize
 
 $qixis_reset altbank
 to switch to DEV#1
 
 Note: if you want to program the DEV#0 , please use the 'i2c mw 66 50 00;sf probe 0:0;'
 Please be very careful when load those binaries to flash.
-If load failed when use the LX2160A_SDK_LX2160ARDB_20180716_XSPI_Flash,
-then please deploy images as in 4.2.1 (Deploy NXP pre-built image one by one).
 
 5.3. FlexSPI NOR Flash Chip-select
 --------------------------
@@ -239,11 +196,12 @@ mentioned in the sections
 
 	"4.2 Memory Layout"
 and
-	"4.3.1 LX2160ARDB"
+	"4.1.11 LX2160ARDB"
 
 in the NXP's SDK user manual
 
-	"Layerscape LX2160A BSP v0.3.pdf".
+	"Layerscape Software Development Kit 19.06 Documentation.pdf".
+
 
 6. Creating Partitioned Images(WIC)
 ===================================
@@ -340,24 +298,80 @@ mentioned in the NXP's SDK user manual
 in
 	"Layerscape LX2160A BSP v0.3.pdf".
 
-8. DPDK
+8. kexec/kdump
+==============
+
+For discussion purposes, some useful terminology will be described here.
+
+boot kernel - the first kernel that you start and supports kexec,
+              from U-Boot for instance.
+capture kernel - the kernel that you reboot into after a boot kernel crash.
+
+To build the boot or capture kernel, use the following option with the configure
+command for your project:
+
+	--template=feature/kexec,feature/kdump
+
+To reserve a memory region for the capture kernel, pass "crashkernel=512M"
+via the U-Boot command line.
+
+NOTES:
+1. Use vmlinux as a secondary kernel. It can be found in the directory
+   tmp-glibc/work/<bsp name>-wrs-linux/linux-yocto/<kernel version>/linux-<bsp name>-<kernel type>-build/vmlinux
+2. 512 MB (the size of the memory reserved for crash kernel) is the
+   recommended amount of memory. If you add more features to the kernel, you
+   can increase this value to accommodate the capture kernel.
+
+Workaround:
+1. Kexec: DPAA2 is unsupported in 2nd kernel.
+   User can use on-board Intel E1000e card to do Ethernet functions in 2nd
+   kernel(e.g., mount NFS, scp).
+   User can turn DPAA2 off in two ways:
+a) Don't call "fsl_mc start" in U-Boot command line, this will disable the
+   DPAA2 both in the 1st and 2nd kernel.
+b) If 1st kernel has already enabled DPAA2, please use the below 3 commands
+   to destroy all DPNI interfaces in 1st kernel before calling "kexec -e":
+
+   # restool dprc show dprc.1 | grep dpni
+   /* Above command is to find all DPNI interfaces. */
+
+   # echo dpni.0 > /sys/bus/fsl-mc/devices/dpni.0/driver/unbind
+   /* Unbind DPNI interface from fsl_mc driver */
+
+   # restool dpni destroy dpni.0
+   /* Destroy this DPNI interface */
+c) User needs to append argument "irqchip.gicv3_nolpi=1" to the first kernel
+   to disable LPI to make Kexec work.
+
+2. Kdump: PCI-MSI and SMP is unsupported in 2nd kernel.
+   User needs to append two arguments "pci=nomsi maxcpus=1".
+   Since this 2nd kernel operates under significantly constrained
+   initialization conditions and is not meant to be a "replacement" kernel.
+   Rather it has a single goal -- to enable data collection with respect to
+   the issue that impacted the initial kernel, and nothing else.
+
+For more detailed information about kdump, please refer to
+Documentation/kdump/kdump.txt in the kernel source tree.
+
+9. DPDK
 =======
 
-8.1 Boot Arguments
+9.1 Boot Arguments
 ------------------
 The following boot arguments can be used in order to obtain the best performance
 for DPDK applications:
   default_hugepagesz=1024m hugepagesz=1024m hugepages=8
 
-8.2 Sample Applications
+9.2 Sample Applications
 -----------------------
-In order to get the sample applications provided by the DPDK, you need to enable
-bsp-extras template. You can use the steps like the following to run the sample
+In order to get the sample applications provided by the DPDK.
+You can use the steps like the following to run the sample
 applications. Take the l2fwd as example:
-  1. Configure the DPAA2 resource container:
-       /usr/share/dpdk/dynamic_dpl.sh dpmac.3 dpmac.4
+  1. Setup the MAX_QUEUES and configure the DPAA2 resource container:
+       export MAX_QUEUES=8
+       /usr/bin/dpdk-example/extras/dpaa2/dynamic_dpl.sh dpmac.3 dpmac.4
   2. Setup the environment variable using the container name reported by
      dynamic_dpl.sh command:
        export DPRC=dprc.2
   3. Run the layer 2 forwarding application:
-       /usr/share/examples/l2fwd/l2fwd -c 0x6 -n 1 -- -p 0x3
+       /usr/bin/dpdk-example/l2fwd -c 0x6 -n 1 -- -p 0x3
