@@ -166,7 +166,7 @@ Note: Use 'i2c mw 66 50 20;sf probe 0:0' to program DEV#1, while use
 NXP provides a pre-built image which contains U-Boot, RCW, etc.
 Please download it through:
 
- wget http://www.nxp.com/lgfiles/sdk/lsdk1906/firmware_lx2160ardb_uboot_xspiboot.img
+ wget http://www.nxp.com/lgfiles/sdk/lsdk1903/firmware_lx2160ardb_uboot_xspiboot.img
 and burn it to the target board under the U-Boot prompt using the commands below:
 
 $i2c mw 66 50 20;sf probe 0:0;
